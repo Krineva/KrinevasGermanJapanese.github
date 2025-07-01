@@ -1,0 +1,212 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanisch Vokabeltrainer</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f8ff; /* Leichter Blauton */
+            margin: 0;
+            overflow: hidden; /* Verhindert Scrollbalken */
+            cursor: pointer; /* Zeigt an, dass man klicken kann */
+        }
+
+        .vocabulary-container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 40px 60px;
+            text-align: center;
+            max-width: 90%;
+            transition: transform 0.3s ease-in-out;
+            border: 2px solid #007bff; /* Blauer Rand */
+        }
+
+        .vocabulary-container:hover {
+            transform: translateY(-5px);
+        }
+
+        #vocabulary-display {
+            font-size: 5em; /* Sehr groß für gute Sichtbarkeit */
+            font-weight: bold;
+            color: #333;
+            min-height: 1.5em; /* Stellt sicher, dass der Platz gehalten wird */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            word-break: break-word; /* Bricht lange Wörter um */
+            transition: color 0.5s ease-in-out;
+        }
+
+        #reading-display {
+            font-size: 2.5em; /* Etwas kleiner für die Lesung */
+            color: #666;
+            min-height: 1.2em;
+            margin-top: 15px;
+            transition: color 0.5s ease-in-out;
+        }
+
+        #translation-display {
+            font-size: 3.5em; /* Größe für die Übersetzung */
+            color: #007bff; /* Blaue Farbe für die Übersetzung */
+            min-height: 1.5em;
+            margin-top: 25px;
+            font-weight: bold;
+            transition: color 0.5s ease-in-out;
+        }
+
+        /* Klassen für Animationen/Übergänge */
+        .fade-out {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .fade-in {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.5s ease-in, transform 0.5s ease-in;
+        }
+    </style>
+</head>
+<body>
+    <div class="vocabulary-container" id="vocabContainer">
+        <div id="vocabulary-display"></div>
+        <div id="reading-display"></div>
+        <div id="translation-display"></div>
+    </div>
+
+    <script>
+        // Deine JLPT N1 Vokabeln: japanisch (Hiragana), kanji (optional), deutsch (Übersetzung als ARRAY)
+        const vocabulary = [
+            { hiragana: "ふしめ", kanji: "節目", deutsch: ["Lebensabschnitt", "Astknoten"] },
+            { hiragana: "ただよう", kanji: "漂う", deutsch: ["umhertreiben", "ziellos umherwandern"] },
+            { hiragana: "れんじつ", kanji: "連日", deutsch: ["täglich", "Tag für Tag"] },
+            { hiragana: "けいば", kanji: "競馬", deutsch: ["Pferderennen","Pferderennsport"]  },
+            { hiragana: " かいさい", kanji: "開催", deutsch: ["veranstalten","abhalten"] },
+            { hiragana: " しゅうきゃく", kanji: "集客", deutsch: ["Anlocken von Kunden","Kundenanziehen"] },
+            { hiragana: "みこむ", kanji: "見込む", deutsch: ["Erwartung","rechnen mit","verlassen auf"] },
+            { hiragana: "いんりょう", kanji: "飲料", deutsch: ["Getränk","Trank","Trunk"] },
+            { hiragana: "かんとく", kanji: "監督", deutsch: ["Aufsicht", "Überwachung","Manager, Leiter","Direktor"] },
+            { hiragana: "しんさく", kanji: "新作", deutsch:  ["neues Werk","neue Prokuktion"] },
+            { hiragana: "しょうじ", kanji: "商事", deutsch:  ["Handelsgesellschaft(HG)","Handel"] }
+
+        ];
+
+        let currentVocabularyIndex = 0;
+        let displayState = 0; // 0: Hiragana, 1: Kanji, 2: Deutsch
+        let timeoutId;
+        const displayDuration = 3000; // 3 Sekunden pro Zustand
+
+        const vocabularyDisplay = document.getElementById('vocabulary-display');
+        const readingDisplay = document.getElementById('reading-display');
+        const translationDisplay = document.getElementById('translation-display');
+        const vocabContainer = document.getElementById('vocabContainer');
+
+        // Mischt das Vokabel-Array
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function updateDisplay() {
+            clearTimeout(timeoutId); // Löscht den alten Timeout
+
+            const currentWord = vocabulary[currentVocabularyIndex];
+
+            // Setzt alle Anzeigen zurück und blendet sie aus
+            vocabularyDisplay.classList.remove('fade-in');
+            readingDisplay.classList.remove('fade-in');
+            translationDisplay.classList.remove('fade-in');
+
+            vocabularyDisplay.classList.add('fade-out');
+            readingDisplay.classList.add('fade-out');
+            translationDisplay.classList.add('fade-out');
+
+            // Setzt den Inhalt basierend auf dem aktuellen Zustand
+            setTimeout(() => { // Kurze Verzögerung, um den Fade-Out zu sehen
+                vocabularyDisplay.textContent = '';
+                readingDisplay.textContent = '';
+                translationDisplay.textContent = '';
+
+                if (displayState === 0) {
+                    // Zeige Hiragana
+                    vocabularyDisplay.textContent = currentWord.hiragana;
+                    vocabularyDisplay.style.color = '#333'; // Standardfarbe für Hiragana
+                    readingDisplay.textContent = ''; // Keine Lesung in diesem Zustand
+                    translationDisplay.textContent = ''; // Keine Übersetzung
+                    vocabContainer.style.borderColor = '#007bff'; // Blauer Rand
+                } else if (displayState === 1) {
+                    // Zeige Kanji (falls vorhanden), sonst wieder Hiragana
+                    if (currentWord.kanji) {
+                        vocabularyDisplay.textContent = currentWord.kanji;
+                        vocabularyDisplay.style.color = '#e44d26'; // Orange für Kanji
+                        readingDisplay.textContent = currentWord.hiragana; // Hiragana als Lesung
+                        readingDisplay.style.color = '#666'; // Standardfarbe für Lesung
+                    } else {
+                        // Wenn kein Kanji vorhanden ist, bleibe bei Hiragana
+                        vocabularyDisplay.textContent = currentWord.hiragana;
+                        vocabularyDisplay.style.color = '#333';
+                        readingDisplay.textContent = '(Kein Kanji)';
+                        readingDisplay.style.color = '#aaa'; // Gedämpfte Farbe
+                    }
+                    translationDisplay.textContent = ''; // Keine Übersetzung
+                    vocabContainer.style.borderColor = '#e44d26'; // Oranger Rand
+                } else if (displayState === 2) {
+                    // Zeige deutsche Übersetzungen (jetzt ein Array)
+                    vocabularyDisplay.textContent = ''; // Lösche vorherige Anzeige
+                    readingDisplay.textContent = ''; // Lösche Lesung
+                    translationDisplay.textContent = currentWord.deutsch.join(', '); // Fügt alle Übersetzungen mit Komma und Leerzeichen zusammen
+                    translationDisplay.style.color = '#28a745'; // Grün für die Übersetzung
+                    vocabContainer.style.borderColor = '#28a745'; // Grüner Rand
+                }
+
+                // Blende die neuen Inhalte ein
+                vocabularyDisplay.classList.remove('fade-out');
+                readingDisplay.classList.remove('fade-out');
+                translationDisplay.classList.remove('fade-out');
+                
+                vocabularyDisplay.classList.add('fade-in');
+                readingDisplay.classList.add('fade-in');
+                translationDisplay.classList.add('fade-in');
+
+                // Starte den nächsten Timeout
+                timeoutId = setTimeout(nextState, displayDuration);
+            }, 500); // Dieser Timeout sollte etwas länger sein als die Transition-Dauer der fade-out Klasse
+        }
+
+        function nextState() {
+            displayState++;
+            if (displayState > 2) {
+                displayState = 0; // Zurück zu Hiragana
+                currentVocabularyIndex++;
+                if (currentVocabularyIndex >= vocabulary.length) {
+                    currentVocabularyIndex = 0; // Beginnt von vorne
+                    shuffleArray(vocabulary); // Mischt die Vokabeln erneut
+                }
+            }
+            updateDisplay();
+        }
+
+        // Starte das Spiel beim Laden der Seite
+        window.onload = function() {
+            shuffleArray(vocabulary);
+            updateDisplay();
+        };
+
+        // Bei Klick auf den Container sofort zum nächsten Zustand wechseln
+        vocabContainer.addEventListener('click', () => {
+            nextState();
+        });
+    </script>
+</body>
+</html>
