@@ -1,0 +1,538 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanisch Vokabel Memory</title>
+    <style>
+        /* CSS-Code */
+        /* --- Grundlegende Stile für den Body --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f7f6;
+            margin: 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+
+        /* --- Spielinformationen (Punkte, aktueller Spieler) --- */
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 80%;
+            max-width: 600px;
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cceeff;
+            border-radius: 10px;
+            background-color: #e0f2f7;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-score {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        .current-player {
+            color: #007bff;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        /* --- Spielbrett-Layout --- */
+        .game-board {
+            display: grid;
+            /* Passt die Spalten dynamisch an, min 130px, flexibel */
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 20px;
+            width: 90%;
+            max-width: 1000px;
+            perspective: 1000px; /* Ermöglicht den 3D-Effekt für die Karten */
+        }
+
+        /* --- Allgemeine Kartenstile --- */
+        .card {
+            width: 130px;
+            height: 130px;
+            position: relative; /* Für die absolute Positionierung des .card-inner */
+            transform-style: preserve-3d; /* Wichtig für den 3D-Flip-Effekt */
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* --- Karte im umgedrehten Zustand (Hier findet die eigentliche 3D-Drehung statt) --- */
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* --- Karten, die ein Match sind und verschwinden --- */
+        .card.matched {
+            visibility: hidden; /* Macht die Karte unsichtbar */
+            opacity: 0; /* Verblasst die Karte */
+            transition: visibility 0s 0.8s, opacity 0.8s ease-out; /* Verzögerung beim Verschwinden */
+        }
+
+        /* --- Innerer Container für Vorder- und Rückseite --- */
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: relative; /* relative, damit children absolut positioniert werden können */
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            overflow: hidden; /* Verhindert, dass Text über den Rand hinausragt */
+            /* Keine eigene transform-style oder transition hier */
+        }
+
+        /* --- Vorder- und Rückseite der Karte --- */
+        .card-front, .card-back {
+            position: absolute; /* Absolute Positionierung innerhalb von .card-inner */
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* backface-visibility wird hier *nicht* benötigt, da wir die Elemente manuell entfernen/hinzufügen */
+            border-radius: 8px;
+        }
+
+        /* Vorderseite der Karte (verdeckt) */
+        .card-front {
+            background-color: #3498db; /* Blau */
+            color: white; /* Fragezeichen weiß */
+            font-size: 2.5em;
+            font-weight: bold;
+            transform: rotateY(0deg); /* Vorderseite ist standardmäßig nach vorne gerichtet */
+        }
+
+        /* Rückseite der Karte (Vokabel sichtbar) - WIRD DYNAMISCH ERSTELLT/GELÖSCHT */
+        .card-back {
+            background-color: #ecf0f1; /* Hellgrau */
+            transform: rotateY(180deg); /* Rückseite ist um 180 Grad gedreht */
+            padding: 5px;
+            box-sizing: border-box; /* Padding wird in die Gesamtgröße eingerechnet */
+            word-wrap: break-word; /* Lange Wörter umbrechen */
+            font-weight: bold;
+            color: #2c3e50; /* Dunkelgrau für die Vokabel */
+            line-height: 1.2;
+            /* Die Schriftgröße wird dynamisch per JavaScript gesetzt */
+        }
+
+        /* Match-Highlight (kurz grün aufleuchten) */
+        .card.matched-highlight .card-front,
+        .card.matched-highlight .card-back {
+            background-color: #2ecc71; /* Grün */
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        /* --- Responsive Anpassungen für kleinere Bildschirme --- */
+        @media (max-width: 768px) {
+            .game-board {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 10px;
+            }
+            .card {
+                width: 100px;
+                height: 100px;
+            }
+            .card-back {
+                font-size: 1.1em !important;
+            }
+            .card-front {
+                font-size: 2em;
+            }
+        }
+
+        /* --- Button für "Neues Spiel" --- */
+        .reset-button {
+            margin-top: 30px;
+            padding: 12px 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: background-color 0.3s ease, transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .reset-button:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+
+        /* --- Nachricht für den Gewinner --- */
+        .winner-message {
+            margin-top: 25px;
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #e67e22; /* Orange */
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Japanisch Vokabel Memory</h1>
+
+    <div class="game-info">
+        <div class="player-score">Spieler 1: <span id="player1-score">0</span></div>
+        <div class="player-score">Spieler 2: <span id="player2-score">0</span></div>
+        <div class="current-player">Aktueller Spieler: <span id="current-player-display">1</span></div>
+    </div>
+
+    <div class="game-board" id="game-board">
+        </div>
+
+    <button class="reset-button" onclick="initGame()">Neues Spiel</button>
+
+    <div class="winner-message" id="winner-message"></div>
+
+    <script>
+        // JavaScript-Code
+        const vocabulary = [
+            { hiragana: "ふしめ", kanji: "節目", deutsch: ["Lebensabschnitt", "Astknoten"] },
+            { hiragana: "ただよう", kanji: "漂う", deutsch: ["umhertreiben", "ziellos umherwandern"] },
+            { hiragana: "れんじつ", kanji: "連日", deutsch: ["täglich", "Tag für Tag"] },
+            { hiragana: "けいば", kanji: "競馬", deutsch: ["Pferderennen", "Pferderennsport"] }
+            
+        ];
+
+        let cards = [];
+        let flippedCards = [];
+        let matchedSets = 0;
+        let lockBoard = false;
+        let player1Score = 0;
+        let player2Score = 0;
+        let currentPlayer = 1;
+        let totalSets = 0;
+
+        const gameBoard = document.getElementById('game-board');
+        const player1ScoreDisplay = document.getElementById('player1-score');
+        const player2ScoreDisplay = document.getElementById('player2-score');
+        const currentPlayerDisplay = document.getElementById('current-player-display');
+        const winnerMessage = document.getElementById('winner-message');
+
+        /**
+         * @function initGame
+         * @description Initialisiert das Spiel: Setzt alle Variablen zurück, generiert, mischt und zeigt die Karten an.
+         */
+        function initGame() {
+            cards = [];
+            flippedCards = [];
+            matchedSets = 0;
+            lockBoard = false;
+            player1Score = 0;
+            player2Score = 0;
+            currentPlayer = 1;
+            totalSets = vocabulary.length;
+
+            player1ScoreDisplay.textContent = player1Score;
+            player2ScoreDisplay.textContent = player2Score;
+            currentPlayerDisplay.textContent = currentPlayer;
+            winnerMessage.textContent = '';
+            gameBoard.innerHTML = '';
+
+            generateCards();
+            shuffleCards();
+            displayCards();
+        }
+
+        /**
+         * @function generateCards
+         * @description Erstellt für jede Vokabel in der `vocabulary`-Liste drei Karten (Hiragana, Kanji, Deutsch).
+         * Jede Gruppe von drei zusammengehörigen Karten erhält dieselbe `setId`.
+         */
+        function generateCards() {
+            vocabulary.forEach((vocab, index) => {
+                cards.push({
+                    type: 'hiragana',
+                    value: vocab.hiragana,
+                    setId: index,
+                    id: `hiragana-${index}`
+                });
+                cards.push({
+                    type: 'kanji',
+                    value: vocab.kanji,
+                    setId: index,
+                    id: `kanji-${index}`
+                });
+                cards.push({
+                    type: 'deutsch',
+                    value: vocab.deutsch.join(', '),
+                    setId: index,
+                    id: `deutsch-${index}`
+                });
+            });
+        }
+
+        /**
+         * @function shuffleCards
+         * @description Mischt das `cards`-Array mithilfe des Fisher-Yates-Algorithmus.
+         */
+        function shuffleCards() {
+            for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+            }
+        }
+
+        /**
+         * @function createCardElements
+         * @description Hilfsfunktion zum Erstellen der HTML-Elemente für eine Karte.
+         * @param {Object} cardData - Die Daten der Karte (type, value, setId, id).
+         * @returns {HTMLElement} Das erstellte Karten-Element.
+         */
+        function createCardElements(cardData) {
+            const cardElement = document.createElement('div');
+            cardElement.classList.add('card');
+            cardElement.dataset.setId = cardData.setId;
+            cardElement.dataset.type = cardData.type;
+            cardElement.dataset.value = cardData.value;
+            cardElement.id = cardData.id;
+
+            const cardInner = document.createElement('div');
+            cardInner.classList.add('card-inner');
+
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-front');
+            cardFront.textContent = '?';
+
+            cardInner.appendChild(cardFront); // Füge die Vorderseite hinzu
+
+            cardElement.appendChild(cardInner);
+            cardElement.addEventListener('click', flipCard);
+            return cardElement;
+        }
+
+        /**
+         * @function addCardBackContent
+         * @description Fügt den Inhalt der Rückseite einer Karte hinzu.
+         * @param {HTMLElement} cardElement - Das Haupt-Karten-Element.
+         */
+        function addCardBackContent(cardElement) {
+            const cardInner = cardElement.querySelector('.card-inner');
+            // Prüfen, ob die Rückseite bereits existiert, um Duplikate zu vermeiden
+            if (cardInner.querySelector('.card-back')) {
+                return;
+            }
+
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-back');
+            cardBack.textContent = cardElement.dataset.value; // Nimmt den Wert aus den data-Attributen
+
+            // Dynamische Anpassung der Schriftgröße für die Rückseite
+            const textLength = cardBack.textContent.length;
+            let fontSize = 1.8;
+            if (textLength <= 5) {
+                fontSize = 1.8;
+            } else if (textLength <= 8) {
+                fontSize = 1.6;
+            } else if (textLength <= 12) {
+                fontSize = 1.4;
+            } else if (textLength <= 16) {
+                fontSize = 1.2;
+            } else if (textLength <= 20) {
+                fontSize = 1.0;
+            } else if (textLength <= 25) {
+                fontSize = 0.9;
+            } else {
+                fontSize = 0.8;
+            }
+            cardBack.style.fontSize = `${fontSize}em`;
+
+            cardInner.appendChild(cardBack); // Füge die Rückseite dem inneren Container hinzu
+        }
+
+        /**
+         * @function removeCardBackContent
+         * @description Entfernt den Inhalt der Rückseite einer Karte.
+         * @param {HTMLElement} cardElement - Das Haupt-Karten-Element.
+         */
+        function removeCardBackContent(cardElement) {
+            const cardInner = cardElement.querySelector('.card-inner');
+            const cardBack = cardInner.querySelector('.card-back');
+            if (cardBack) {
+                cardInner.removeChild(cardBack); // Entferne das Element der Rückseite
+            }
+        }
+
+        /**
+         * @function displayCards
+         * @description Erstellt die HTML-Struktur für jede Karte und fügt sie dem Spielbrett hinzu.
+         * Beim Initialisieren sind alle Karten mit ihrer Vorderseite sichtbar, die Rückseite wird nicht gerendert.
+         */
+        function displayCards() {
+            gameBoard.style.gridTemplateColumns = `repeat(auto-fit, minmax(130px, 1fr))`;
+
+            cards.forEach(cardData => {
+                const cardElement = createCardElements(cardData);
+                // WICHTIG: Beim Initialisieren wird die Rückseite NICHT hinzugefügt.
+                // Sie wird erst beim Umdrehen dynamisch generiert.
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        /**
+         * @function flipCard
+         * @description Dreht eine Karte um. Wenn sie umgedreht wird, wird die Rückseite generiert.
+         * @param {Event} event Das Klickereignis auf die Karte.
+         */
+        function flipCard() {
+            if (lockBoard) return;
+            if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
+
+            // **Schritt 1: Rückseite generieren, BEVOR die Karte gedreht wird**
+            // Füge den Inhalt der Rückseite hinzu, wenn die Karte noch nicht "flipped" ist
+            // Dadurch ist der Inhalt da, wenn die Rückseite sichtbar wird
+            addCardBackContent(this);
+
+            // **Schritt 2: Karte umdrehen**
+            this.classList.add('flipped');
+            flippedCards.push(this);
+
+            if (flippedCards.length === 3) {
+                lockBoard = true;
+                checkForMatch();
+            }
+        }
+
+        /**
+         * @function checkForMatch
+         * @description Überprüft, ob die drei aktuell umgedrehten Karten ein gültiges Match bilden.
+         */
+        function checkForMatch() {
+            const [card1, card2, card3] = flippedCards;
+            const setId1 = card1.dataset.setId;
+            const setId2 = card2.dataset.setId;
+            const setId3 = card3.dataset.setId;
+            const types = new Set([card1.dataset.type, card2.dataset.type, card3.dataset.type]);
+            const isMatch = (setId1 === setId2 && setId2 === setId3) && (types.size === 3);
+
+            if (isMatch) {
+                matchedSets++;
+                updateScore();
+                highlightAndRemoveMatchedCards();
+            } else {
+                setTimeout(() => {
+                    unflipCards();
+                }, 1200);
+            }
+        }
+
+        /**
+         * @function highlightAndRemoveMatchedCards
+         * @description Fügt eine Highlight-Klasse zu passenden Karten hinzu und entfernt sie dann.
+         */
+        function highlightAndRemoveMatchedCards() {
+            flippedCards.forEach(card => {
+                card.classList.add('matched-highlight');
+            });
+
+            setTimeout(() => {
+                flippedCards.forEach(card => {
+                    card.classList.remove('matched-highlight');
+                    card.classList.add('matched');
+                    card.removeEventListener('click', flipCard);
+                    // Entferne die Rückseite auch hier, da die Karte ohnehin verschwindet
+                    removeCardBackContent(card);
+                });
+                checkGameEnd();
+                resetBoard();
+            }, 800);
+        }
+
+        /**
+         * @function unflipCards
+         * @description Dreht alle aktuell umgedrehten Karten zurück.
+         * **Beim Zurückdrehen wird die Rückseite (Vokabel) wieder entfernt.**
+         */
+        function unflipCards() {
+            // Drehe die Karten zuerst um (CSS-Animation)
+            flippedCards.forEach(card => {
+                card.classList.remove('flipped');
+            });
+
+            // Warte, bis die CSS-Dreh-Animation abgeschlossen ist, bevor du die Rückseite entfernst
+            // Dies ist wichtig, damit der Benutzer die Vokabel noch kurz sehen kann.
+            setTimeout(() => {
+                flippedCards.forEach(card => {
+                    removeCardBackContent(card); // **Rückseite entfernen**
+                });
+                resetBoard();
+                switchPlayer();
+            }, 600); // Passt zur Dauer der CSS-Transition von 0.6s
+        }
+
+        /**
+         * @function resetBoard
+         * @description Setzt den Zustand des Spielboards zurück.
+         */
+        function resetBoard() {
+            flippedCards = [];
+            lockBoard = false;
+        }
+
+        /**
+         * @function updateScore
+         * @description Erhöht die Punktzahl des aktuellen Spielers und aktualisiert die Anzeige.
+         */
+        function updateScore() {
+            if (currentPlayer === 1) {
+                player1Score++;
+                player1ScoreDisplay.textContent = player1Score;
+            } else {
+                player2Score++;
+                player2ScoreDisplay.textContent = player2Score;
+            }
+        }
+
+        /**
+         * @function switchPlayer
+         * @description Wechselt den aktuellen Spieler.
+         */
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            currentPlayerDisplay.textContent = currentPlayer;
+        }
+
+        /**
+         * @function checkGameEnd
+         * @description Prüft, ob alle Karten gematcht wurden.
+         */
+        function checkGameEnd() {
+            if (matchedSets === totalSets) {
+                let winner = '';
+                if (player1Score > player2Score) {
+                    winner = 'Spieler 1 hat gewonnen!';
+                } else if (player2Score > player1Score) {
+                    winner = 'Spieler 2 hat gewonnen!';
+                } else {
+                    winner = 'Es ist ein Unentschieden!';
+                }
+                winnerMessage.textContent = winner;
+                lockBoard = true;
+            }
+        }
+
+        // --- Event Listener für den Start des Spiels beim Laden der Seite ---
+        document.addEventListener('DOMContentLoaded', initGame);
+
+    </script>
+</body>
+</html>
